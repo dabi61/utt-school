@@ -1,0 +1,9 @@
+Django
+djangorestframework
+psycopg2
+drf-spectacular
+Pillow
+uwsgi
+django-jazzmin
+djoser
+djangorestframework_simplejwt
