@@ -1,12 +1,11 @@
 from django.contrib import admin
-from .models import Student, Teacher, Schedule, Attendance, QRCode, User
+from .models import Student, Teacher, Schedule, Attendance, QRCode, User, Classroom, Class, Object
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.decorators import user_passes_test
 from django.urls import path
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
-from core import models
 from django import forms
 from django.shortcuts import redirect
 from django.contrib import messages
@@ -53,7 +52,7 @@ def set_as_sinhvien(modeladmin, request, queryset):
         if group_sv not in user.groups.all():
             user.groups.add(group_sv)
 
-        user.is_staff = False  # Tuỳ chọn nếu sinh viên không cần vào admin
+        user.is_staff = True  # Tuỳ chọn nếu sinh viên không cần vào admin
         user.save()
 
         # Xoá bản ghi Teacher nếu có
@@ -80,7 +79,6 @@ class UserAdmin(BaseUserAdmin):
     """Define the admin pages for users."""
     actions = [set_as_giangvien, set_as_sinhvien]
     ordering = ['id']  # Sắp xếp theo ID
-    list_display = ['email', 'name', 'is_staff']  # Hiển thị email, tên và các vai trò
     form = UserAdminForm  # Sử dụng form tùy chỉnh
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
@@ -98,7 +96,7 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'password1', 'password2', 'name', 'is_active', 'is_staff', 'is_superuser', 'groups')
+            'fields': ('email', 'password1', 'password2', 'name', 'is_active',)
         }),
     )
 
@@ -110,12 +108,15 @@ class UserAdmin(BaseUserAdmin):
             return "Sinh viên"
         return "Không xác định"
     # list_display nên như sau:
-    list_display = ['email', 'role', 'is_staff']
+    list_display = ['email', 'role', ]
 
 # Register models in the admin interface
 admin.site.register(Student)
 admin.site.register(User, UserAdmin)
 admin.site.register(Teacher)
+admin.site.register(Object)
+admin.site.register(Classroom)
+admin.site.register(Class)
 admin.site.register(Schedule)
 admin.site.register(Attendance)
 admin.site.register(QRCode)
