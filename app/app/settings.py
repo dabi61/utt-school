@@ -43,8 +43,8 @@ INSTALLED_APPS = [
     "djoser",
     "django.contrib.sites",
     "core",
-
-
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
 ]
 
 AUTH_USER_MODEL = 'core.User'
@@ -137,6 +137,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
@@ -152,4 +153,15 @@ DJOSER = {
     },
     "DOMAIN": "localhost:8000",  # Thay đổi thành domain frontend của bạn
     "SITE_NAME": "TuyenSinh",
+}
+
+# DRF Spectacular Settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'UTT School API',
+    'DESCRIPTION': 'API documentation for UTT School',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_DIST': 'SIDECAR',
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    'REDOC_DIST': 'SIDECAR',
 }
