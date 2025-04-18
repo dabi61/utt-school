@@ -16,6 +16,7 @@ from django.contrib.auth.models import (
     Group,
     Permission,
 )
+from django.utils import timezone
 
 def generate_student_code():
     return f"SV{uuid.uuid4().hex[:6].upper()}"
@@ -94,6 +95,7 @@ class Student(models.Model):
 class Teacher(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     teacher_code = models.CharField(max_length=100, unique=True, default=generate_teacher_code)
+    teaching_classes = models.ManyToManyField('Class', related_name='teaching_teachers')
 
     def __str__(self):
         return self.user.email
@@ -101,7 +103,8 @@ class Teacher(models.Model):
 class Class(models.Model):
     class_code = models.CharField(max_length=100, unique=True, default=generate_class_code)
     class_name = models.CharField(max_length=100)
-    students = models.ManyToManyField(Student, related_name='classes')
+    students = models.ManyToManyField(Student, related_name='student_classes')
+    teachers = models.ManyToManyField(Teacher, related_name='teacher_classes')
 
     def __str__(self):
         return f"{self.class_code} - {self.class_name}"
@@ -126,6 +129,21 @@ def generate_qr_code_path(instance, filename):
     date = instance.start_time.date()
     return f'qr_codes/{date.year}/{date.month}/{date.day}/{instance.id}.png'
 
+class Weekday(models.Model):
+    DAY_CHOICES = [
+        ('MON', 'Thứ 2'),
+        ('TUE', 'Thứ 3'),
+        ('WED', 'Thứ 4'),
+        ('THU', 'Thứ 5'),
+        ('FRI', 'Thứ 6'),
+        ('SAT', 'Thứ 7'),
+    ]
+    
+    day = models.CharField(max_length=3, choices=DAY_CHOICES, unique=True)
+    
+    def __str__(self):
+        return dict(self.DAY_CHOICES)[self.day]
+
 class Schedule(models.Model):
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE)
     course_name = models.ForeignKey(Object, on_delete=models.CASCADE)
@@ -133,11 +151,24 @@ class Schedule(models.Model):
     class_name = models.ForeignKey(Class, on_delete=models.CASCADE)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
+    weekdays = models.ManyToManyField(Weekday)
+    start_date = models.DateField(default=timezone.now)
+    end_date = models.DateField(default=timezone.now)
+    is_active = models.BooleanField(default=False)
     qr_code = models.ImageField(upload_to=generate_qr_code_path, blank=True, null=True)
     qr_code_data = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.course_name} by {self.teacher.user.name}"
+
+    def update_active_status(self):
+        today = timezone.now().date()
+        self.is_active = self.start_date <= today <= self.end_date
+        self.save()
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.update_active_status()
 
     def generate_qr_code(self):
         if not self.qr_code_data:

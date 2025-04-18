@@ -24,6 +24,7 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 from core.qr import qr_router
+from core.urls import router as core_router
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -36,4 +37,6 @@ urlpatterns = [
         name='api-docs'
     ),
     path('api/qr/', include(qr_router.urls)),
+    path('api/core/', include(core_router.urls)),
+    path('api/school/', include('school_management.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

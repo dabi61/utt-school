@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Teacher, Schedule, Attendance, QRCode, User, Classroom, Class, Object
+from .models import Student, Teacher, Schedule, Attendance, QRCode, User, Classroom, Class, Object, Weekday
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.decorators import user_passes_test
@@ -117,6 +117,7 @@ admin.site.register(Teacher)
 admin.site.register(Object)
 admin.site.register(Classroom)
 admin.site.register(Class)
+admin.site.register(Weekday)
 admin.site.register(Schedule)
 admin.site.register(Attendance)
 admin.site.register(QRCode)
