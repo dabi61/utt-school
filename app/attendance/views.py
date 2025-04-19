@@ -12,37 +12,39 @@ import logging
 logger = logging.getLogger(__name__)
 
 def get_client_ip(request):
-    """Lấy địa chỉ IP của client từ request"""
+    """Lấy địa chỉ IP của người dùng"""
+    print(f"AttendanceViewSet: Đang lấy IP của người dùng từ request")
+    
+    # Kiểm tra xem middleware FakeIPMiddleware đã được áp dụng chưa
+    if hasattr(request, 'original_ip'):
+        print(f"AttendanceViewSet: Sử dụng IP giả lập: {request.META.get('REMOTE_ADDR')}")
+        print(f"AttendanceViewSet: IP gốc: {request.original_ip}")
+        return request.META.get('REMOTE_ADDR')
+    
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[0]
     else:
         ip = request.META.get('REMOTE_ADDR')
+    print(f"AttendanceViewSet: IP của người dùng: {ip}")
     return ip
 
-def get_location_from_ip(ip_address):
-    """Lấy thông tin vị trí từ địa chỉ IP sử dụng API ipinfo.io"""
+def get_location_from_ip(ip):
+    """Lấy vị trí dựa trên địa chỉ IP"""
+    print(f"AttendanceViewSet: Đang lấy vị trí từ IP: {ip}")
     try:
-        # Sử dụng API miễn phí ipinfo.io
-        response = requests.get(f'https://ipinfo.io/{ip_address}/json')
+        response = requests.get(f"https://ipinfo.io/{ip}/json")
         if response.status_code == 200:
             data = response.json()
-            # Kiểm tra xem có dữ liệu vị trí không
-            if 'loc' in data and data['loc']:
-                # loc là chuỗi dạng "latitude,longitude"
-                lat_lng = data['loc'].split(',')
-                if len(lat_lng) == 2:
-                    return {
-                        'latitude': float(lat_lng[0]),
-                        'longitude': float(lat_lng[1]),
-                        'city': data.get('city'),
-                        'region': data.get('region'),
-                        'country': data.get('country')
-                    }
-        return None
+            print(f"AttendanceViewSet: Dữ liệu từ ipinfo.io: {data}")
+            if 'loc' in data:
+                lat, lon = data['loc'].split(',')
+                return float(lat), float(lon)
+        print("AttendanceViewSet: Không thể lấy vị trí từ IP")
+        return None, None
     except Exception as e:
-        logger.error(f"Lỗi khi lấy vị trí từ IP: {str(e)}")
-        return None
+        print(f"AttendanceViewSet: Lỗi khi lấy vị trí từ IP: {str(e)}")
+        return None, None
 
 class AttendanceViewSet(viewsets.ModelViewSet):
     queryset = Attendance.objects.all()
@@ -91,13 +93,13 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             
             # Nếu không có tọa độ từ client, thử lấy từ IP
             if not latitude or not longitude:
-                client_ip = get_client_ip(self.request)
-                location_data = get_location_from_ip(client_ip)
+                client_ip = self.get_client_ip(self.request)
+                location_data = self.get_location_from_ip(client_ip)
                 if location_data:
-                    latitude = location_data['latitude']
-                    longitude = location_data['longitude']
+                    latitude = location_data[0]
+                    longitude = location_data[1]
                     if not device_info:
-                        device_info = f"IP: {client_ip}, Vị trí: {location_data.get('city', '')}, {location_data.get('region', '')}, {location_data.get('country', '')}"
+                        device_info = f"IP: {client_ip}, Vị trí: {location_data[0]}, {location_data[1]}"
             
             serializer.save(
                 student=student, 
@@ -157,11 +159,11 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             
             # Nếu không có tọa độ từ client, thử lấy từ IP
             if not latitude or not longitude:
-                client_ip = get_client_ip(request)
-                location_data = get_location_from_ip(client_ip)
+                client_ip = self.get_client_ip(self.request)
+                location_data = self.get_location_from_ip(client_ip)
                 if location_data:
-                    latitude = location_data['latitude']
-                    longitude = location_data['longitude']
+                    latitude = location_data['lat']
+                    longitude = location_data['lng']
                     location_source = "IP"
                     
                     # Thêm thông tin vị trí vào device_info

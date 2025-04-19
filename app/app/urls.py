@@ -25,9 +25,18 @@ from drf_spectacular.views import (
 )
 from core.qr import qr_router
 from core.urls import router as core_router
+from core.admin import student_admin_site
+from core.views import index_view
+from django.views.generic import TemplateView
 
 urlpatterns = [
+    # Đường dẫn root cho trang chủ
+    path('', index_view, name='index'),
+    # Đường dẫn cho trang thông tin
+    path('index/html/', TemplateView.as_view(template_name='index/html.html'), name='index-html'),
+    
     path('admin/', admin.site.urls),
+    path('student/', student_admin_site.urls, name='student-admin'),
     path('auth/', include('djoser.urls')),
     path('auth/', include('djoser.urls.jwt')),
     path('api/schema/', SpectacularAPIView.as_view(), name='api-schema'),

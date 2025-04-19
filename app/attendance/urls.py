@@ -6,5 +6,5 @@ router = DefaultRouter()
 router.register(r'attendance', AttendanceViewSet)
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('qr_attendance', AttendanceViewSet.as_view({'post': 'qr_attendance'})),
 ]

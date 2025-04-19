@@ -57,6 +57,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.FakeIPMiddleware",
 ]
 
 ROOT_URLCONF = "app.urls"
@@ -64,7 +65,9 @@ ROOT_URLCONF = "app.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            BASE_DIR / 'core' / 'templates',
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -127,6 +130,13 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+# Thêm cấu hình để tìm thấy static files
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'app' / 'assets',
+]
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
@@ -167,4 +177,107 @@ SPECTACULAR_SETTINGS = {
     'SWAGGER_UI_DIST': 'SIDECAR',
     'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
     'REDOC_DIST': 'SIDECAR',
+}
+
+# Cấu hình Jazzmin cho giao diện Admin
+JAZZMIN_SETTINGS = {
+    # title of the window (Will default to current_admin_site.site_title if absent or None)
+    "site_title": "UTT School",
+    # Title on the login screen (19 chars max) (defaults to current_admin_site.site_header if absent or None)
+    "site_header": "UTT School",
+    # Title on the brand (19 chars max) (defaults to current_admin_site.site_header if absent or None)
+    "site_brand": "UTT School",
+    # Logo to use for your site, must be present in static files, used for brand on top left
+    "site_logo": "logo-short.png",
+    # CSS classes that are applied to the logo above
+    "site_logo_classes": "img-responsive",
+    # Thêm cấu hình kích thước logo
+    "site_logo_style": "height: 24px; width: auto;",
+    # Relative path to a favicon for your site, will default to site_logo if absent (ideally 32x32 px)
+    # "site_icon": None,
+    # Welcome text on the login screen
+    "welcome_sign": "Chào mừng đến với hệ thống quản lý UTT School",
+    # Copyright on the footer
+    "copyright": "UTT School",
+    # The model admin to search from the search bar, search bar omitted if excluded
+    "search_model": "core.User",
+    # Field name on user model that contains avatar ImageField/URLField/Charfield or a callable that receives the user
+    "user_avatar": None,
+    ############
+    # Top Menu #
+    ############
+    # Links to put along the top menu
+    "topmenu_links": [
+        # Url that gets reversed (Permissions can be added)
+        {"name": "Trang chủ", "url": "admin:index", "permissions": ["auth.view_user"]},
+        # model admin to link to (Permissions checked against model)
+        {"model": "auth.User"},
+        # App with dropdown menu to all its models pages
+        {"app": "core"},
+    ],
+    #############
+    # User Menu #
+    #############
+    # Additional links to include in the user menu on the top right ("app" url type is not allowed)
+    "usermenu_links": [
+        {"name": "Hồ sơ", "url": "", "new_window": False},
+        {"model": "auth.user"}
+    ],
+    #############
+    # Side Menu #
+    #############
+    # Whether to display the side menu
+    "show_sidebar": True,
+    # Whether to auto expand the menu
+    "navigation_expanded": True,
+    # Hide these apps when generating side menu e.g (auth)
+    "hide_apps": [],
+    # Hide these models when generating side menu (e.g auth.user)
+    "hide_models": [],
+    # List of apps (and/or models) to base side menu ordering off of (does not need to contain all apps/models)
+    "order_with_respect_to": ["auth", "core", "core.user", "core.student", "core.teacher"],
+    # Custom icons for side menu apps/models
+    # Icons should be a dictionary mapping model or app to an icon class
+    # Font Awesome icons are available: https://fontawesome.com/v5/search
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+        "core.User": "fas fa-user",
+        "core.Student": "fas fa-user-graduate",
+        "core.Teacher": "fas fa-chalkboard-teacher",
+        "core.Class": "fas fa-school",
+        "core.Classroom": "fas fa-door-open",
+        "core.Schedule": "fas fa-calendar-alt",
+        "core.Attendance": "fas fa-clipboard-check",
+        "core.Object": "fas fa-book",
+        "core.QRCode": "fas fa-qrcode",
+        "core.Weekday": "fas fa-calendar-day",
+    },
+    # Custom CSS classes for sidebar apps/models (from above icons)
+    "themes": {
+        "light": "https://cdn.jsdelivr.net/npm/bootswatch@5.2.3/dist/flatly/bootstrap.min.css",
+        "dark": "https://cdn.jsdelivr.net/npm/bootswatch@5.2.3/dist/darkly/bootstrap.min.css",
+    },
+    # Render title in fancy HTML
+    "site_brand": "UTT SCHOOL",
+    # UI tweaks
+    # "related_modal_active": True,
+    "custom_css": None,
+    "custom_js": None,
+    # Whether to show the UI customizer on the sidebar
+    "show_ui_builder": True,
+    # Changeform View-specific
+    "changeform_format": "horizontal_tabs",
+    "changeform_format_overrides": {
+        "auth.user": "collapsible",
+        "auth.group": "vertical_tabs",
+    },
+    # Cấu hình màu sắc chủ đạo
+    "primary_color": "#FF7F00",
+    "secondary_color": "#1A2C56",
+    "accent_color": "#FF7F00",
+    "primary_fg_color": "#FFFFFF",
+    "secondary_fg_color": "#FFFFFF",
+    "accent_fg_color": "#FFFFFF",
 }

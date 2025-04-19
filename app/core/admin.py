@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils import timezone
+from django.contrib.admin.sites import AdminSite
 
 def set_as_giangvien(modeladmin, request, queryset):
     group_gv, _ = Group.objects.get_or_create(name='GiangVien')
@@ -226,35 +227,54 @@ class AttendanceAdmin(admin.ModelAdmin):
                 <h3>Vị trí phòng học {}: {:.6f}, {:.6f}</h3>
                 {}
                 <div id="{}" style="width: 100%; height: 400px;"></div>
-                <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBEjmPyIZGCuEZL6mTq-e14U2xlCG-N2Z4&callback=initMap_{}"></script>
                 <script>
-                // Định nghĩa hàm khởi tạo với tên duy nhất cho mỗi bản đồ
-                function initMap_{}() {{
-                    if (document.getElementById('{}')) {{
-                        // Tọa độ phòng học
-                        var classroomLocation = {{ lat: {}, lng: {} }};
-                        
-                        // Tạo bản đồ
-                        var map = new google.maps.Map(document.getElementById('{}'), {{
-                            zoom: 15,
-                            center: classroomLocation
-                        }});
-                        
-                        // Đánh dấu vị trí phòng học
-                        var classroomMarker = new google.maps.Marker({{
-                            position: classroomLocation,
-                            map: map,
-                            title: 'Phòng học: {}',
-                            icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-                        }});
-                        
-                        // Nếu có tọa độ sinh viên, thêm marker cho sinh viên
-                        {}
-                        
-                        // Tự động điều chỉnh zoom để hiển thị cả hai marker nếu có
-                        {}
+                // Đảm bảo Google Maps API được tải trước khi khởi tạo bản đồ
+                document.addEventListener('DOMContentLoaded', function() {{
+                    // Kiểm tra xem Google Maps API đã tải chưa
+                    if (typeof google === 'undefined') {{
+                        // Tải Google Maps API nếu chưa có
+                        var script = document.createElement('script');
+                        script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyBEjmPyIZGCuEZL6mTq-e14U2xlCG-N2Z4&callback=initMap_{}'
+                        script.async = true;
+                        script.defer = true;
+                        document.head.appendChild(script);
+                    }} else {{
+                        // Nếu đã tải API, khởi tạo bản đồ
+                        window['initMap_{}']();
                     }}
-                }}
+                }});
+
+                // Định nghĩa hàm khởi tạo với tên duy nhất cho mỗi bản đồ
+                window['initMap_{}'] = function() {{
+                    var mapElement = document.getElementById('{}');
+                    if (!mapElement) {{
+                        console.error('Map element not found: {}');
+                        return;
+                    }}
+                    
+                    // Tọa độ phòng học
+                    var classroomLocation = {{ lat: {}, lng: {} }};
+                    
+                    // Tạo bản đồ
+                    var map = new google.maps.Map(mapElement, {{
+                        zoom: 15,
+                        center: classroomLocation
+                    }});
+                    
+                    // Đánh dấu vị trí phòng học
+                    var classroomMarker = new google.maps.Marker({{
+                        position: classroomLocation,
+                        map: map,
+                        title: 'Phòng học: {}',
+                        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                    }});
+                    
+                    // Nếu có tọa độ sinh viên, thêm marker cho sinh viên
+                    {}
+                    
+                    // Tự động điều chỉnh zoom để hiển thị cả hai marker nếu có
+                    {}
+                }};
                 </script>
             </div>
             """,
@@ -265,22 +285,23 @@ class AttendanceAdmin(admin.ModelAdmin):
             map_id,
             obj.id,  # Thêm tham số duy nhất cho callback
             obj.id,  # Sử dụng tên hàm duy nhất
+            obj.id,  # Sử dụng tên hàm duy nhất
+            map_id,
             map_id,
             classroom_lat,
             classroom_lng,
-            map_id,
             classroom.class_name,
             """
             if ({student_lat} && {student_lng}) {{
-                var studentLocation = {{ lat: parseFloat({0}), lng: parseFloat({1}) }};
+                var studentLocation = {{ lat: parseFloat({student_lat}), lng: parseFloat({student_lng}) }};
                 var studentMarker = new google.maps.Marker({{
                     position: studentLocation,
                     map: map,
-                    title: 'Vị trí điểm danh của {2}',
+                    title: 'Vị trí điểm danh của {student_name}',
                     icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
                 }});
             }}
-            """.format(student_lat, student_lng, obj.student.user.name) if student_lat and student_lng else "",
+            """.format(student_lat=student_lat, student_lng=student_lng, student_name=obj.student.user.name) if student_lat and student_lng else "",
             """
             if ({student_lat} && {student_lng}) {{
                 var bounds = new google.maps.LatLngBounds();
@@ -419,3 +440,375 @@ admin.site.register(QRCode)
 # Tạo group nếu chưa tồn tại
 for group_name in ['GiangVien', 'SinhVien']:
     Group.objects.get_or_create(name=group_name)
+
+# Custom AdminSite cho Student
+class StudentAdminSite(AdminSite):
+    site_header = 'UTT School | Sinh Viên'
+    site_title = 'UTT School | Sinh Viên'
+    index_title = 'Trang quản lý sinh viên'
+    
+    # Thêm thuộc tính nâng cao cho giao diện sinh viên
+    site_url = "/student/"
+    
+    # Đường dẫn tới template
+    index_template = 'student/index.html'
+    
+    def has_permission(self, request):
+        """
+        Kiểm tra quyền truy cập vào trang admin của sinh viên.
+        Chỉ cho phép những người dùng thuộc nhóm SinhVien truy cập.
+        """
+        if not request.user.is_active:
+            return False
+            
+        # Sinh viên truy cập với quyền staff hoặc non-staff
+        return request.user.groups.filter(name='SinhVien').exists()
+    
+    def each_context(self, request):
+        """
+        Thêm các thông tin ngữ cảnh cho mỗi trang trong admin site của sinh viên.
+        """
+        context = super().each_context(request)
+        context.update({
+            'site_header': mark_safe('<span style="font-weight:600;"><span style="color:#FF7F00;">UTT</span> <span style="color:#1A2C56;">School</span> | <span style="color:#FF7F00;">Sinh Viên</span></span>'),
+            'welcome_text': 'Chào mừng đến với hệ thống quản lý dành cho sinh viên',
+            'copyright_text': 'UTT School © 2023',
+            'has_permission': self.has_permission(request),
+        })
+        return context
+        
+    def index(self, request, extra_context=None):
+        """
+        Tùy chỉnh trang chủ cho sinh viên với thông tin hữu ích.
+        """
+        app_list = self.get_app_list(request)
+        
+        # Lấy thông tin sinh viên
+        try:
+            student = Student.objects.get(user=request.user)
+            student_info = {
+                'name': student.user.name,
+                'student_code': student.student_code,
+                'classes': student.student_classes.all(),
+                'attendance_count': Attendance.objects.filter(student=student).count(),
+                'present_count': Attendance.objects.filter(student=student, is_present=True).count(),
+            }
+        except:
+            student_info = None
+            
+        context = {
+            **self.each_context(request),
+            'title': self.index_title,
+            'app_list': app_list,
+            'student_info': student_info,
+            **(extra_context or {}),
+        }
+        
+        return super().index(request, extra_context=context)
+
+# Khởi tạo site admin cho sinh viên
+student_admin_site = StudentAdminSite(name='student_admin')
+
+# Tùy chỉnh các model và hiển thị trên trang admin sinh viên
+class StudentAttendanceAdmin(admin.ModelAdmin):
+    list_display = ['schedule', 'timestamp', 'is_present', 'is_late', 'minutes_late']
+    list_filter = ['is_present', 'is_late', 'schedule__course_name']
+    search_fields = ['schedule__course_name__object_name']
+    readonly_fields = ['attendance_map', 'timestamp', 'latitude', 'longitude', 'schedule', 'student', 
+                      'is_present', 'is_late', 'minutes_late', 'device_info']
+    
+    def location_source(self, obj):
+        if not obj.device_info:
+            return "Không xác định"
+        if "IP:" in obj.device_info:
+            return "Vị trí dựa trên IP"
+        return "GPS thiết bị"
+    location_source.short_description = "Nguồn vị trí"
+    
+    def attendance_map(self, obj):
+        # Lấy tọa độ phòng học
+        classroom = obj.schedule.room
+        classroom_lat = getattr(classroom, 'latitude', None)
+        classroom_lng = getattr(classroom, 'longitude', None)
+        
+        # Tọa độ điểm danh của sinh viên
+        student_lat = obj.latitude
+        student_lng = obj.longitude
+        
+        # Tạo ID động cho bản đồ
+        map_id = f"attendance_map_{obj.id}"
+        
+        # Nếu phòng học không có tọa độ
+        if not classroom_lat or not classroom_lng:
+            return "Phòng học chưa được cài đặt vị trí"
+        
+        # Nếu sinh viên không có dữ liệu tọa độ
+        student_location_html = ""
+        if student_lat and student_lng:
+            student_location_html = f"""
+            <h4>Vị trí điểm danh: {student_lat:.6f}, {student_lng:.6f}</h4>
+            <p>Tình trạng: {"Có mặt" if obj.is_present else "Vắng mặt"} {f"(Trễ {obj.minutes_late} phút)" if obj.is_late else ""}</p>
+            """
+        
+        return format_html(
+            """
+            <div>
+                <h3>Vị trí phòng học {}: {:.6f}, {:.6f}</h3>
+                {}
+                <div id="{}" style="width: 100%; height: 400px;"></div>
+                <script>
+                // Đảm bảo Google Maps API được tải trước khi khởi tạo bản đồ
+                document.addEventListener('DOMContentLoaded', function() {{
+                    // Kiểm tra xem Google Maps API đã tải chưa
+                    if (typeof google === 'undefined') {{
+                        // Tải Google Maps API nếu chưa có
+                        var script = document.createElement('script');
+                        script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyBEjmPyIZGCuEZL6mTq-e14U2xlCG-N2Z4&callback=initMap_{}'
+                        script.async = true;
+                        script.defer = true;
+                        document.head.appendChild(script);
+                    }} else {{
+                        // Nếu đã tải API, khởi tạo bản đồ
+                        window['initMap_{}']();
+                    }}
+                }});
+
+                // Định nghĩa hàm khởi tạo với tên duy nhất cho mỗi bản đồ
+                window['initMap_{}'] = function() {{
+                    var mapElement = document.getElementById('{}');
+                    if (!mapElement) {{
+                        console.error('Map element not found: {}');
+                        return;
+                    }}
+                    
+                    // Tọa độ phòng học
+                    var classroomLocation = {{ lat: {}, lng: {} }};
+                    
+                    // Tạo bản đồ
+                    var map = new google.maps.Map(mapElement, {{
+                        zoom: 15,
+                        center: classroomLocation
+                    }});
+                    
+                    // Đánh dấu vị trí phòng học
+                    var classroomMarker = new google.maps.Marker({{
+                        position: classroomLocation,
+                        map: map,
+                        title: 'Phòng học: {}',
+                        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                    }});
+                    
+                    // Nếu có tọa độ sinh viên, thêm marker cho sinh viên
+                    {}
+                    
+                    // Tự động điều chỉnh zoom để hiển thị cả hai marker nếu có
+                    {}
+                }};
+                </script>
+            </div>
+            """,
+            classroom.class_name,
+            classroom_lat,
+            classroom_lng,
+            student_location_html,
+            map_id,
+            obj.id,  # Thêm tham số duy nhất cho callback
+            obj.id,  # Sử dụng tên hàm duy nhất
+            obj.id,  # Sử dụng tên hàm duy nhất
+            map_id,
+            map_id,
+            classroom_lat,
+            classroom_lng,
+            classroom.class_name,
+            """
+            if ({student_lat} && {student_lng}) {{
+                var studentLocation = {{ lat: parseFloat({student_lat}), lng: parseFloat({student_lng}) }};
+                var studentMarker = new google.maps.Marker({{
+                    position: studentLocation,
+                    map: map,
+                    title: 'Vị trí điểm danh của {student_name}',
+                    icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                }});
+            }}
+            """.format(student_lat=student_lat, student_lng=student_lng, student_name=obj.student.user.name) if student_lat and student_lng else "",
+            """
+            if ({student_lat} && {student_lng}) {{
+                var bounds = new google.maps.LatLngBounds();
+                bounds.extend(classroomLocation);
+                bounds.extend(studentLocation);
+                map.fitBounds(bounds);
+            }}
+            """.format(student_lat=student_lat, student_lng=student_lng) if student_lat and student_lng else ""
+        )
+    attendance_map.short_description = 'Bản đồ vị trí'
+    
+    def get_fieldsets(self, request, obj=None):
+        if obj:  # Chỉ hiển thị bản đồ khi xem chi tiết
+            return [
+                (None, {'fields': ['student', 'schedule', 'is_present', 'is_late', 'minutes_late', 'timestamp']}),
+                ('Thông tin vị trí', {'fields': ['latitude', 'longitude', 'device_info']}),
+                ('Bản đồ', {'fields': ['attendance_map']}),
+            ]
+        return [
+            (None, {'fields': ['student', 'schedule', 'is_present', 'is_late', 'minutes_late']}),
+            ('Thông tin vị trí', {'fields': ['latitude', 'longitude', 'device_info']}),
+        ]
+    
+    def get_queryset(self, request):
+        """
+        Chỉ hiển thị attendance của sinh viên đang đăng nhập
+        """
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        
+        try:
+            student = Student.objects.get(user=request.user)
+            return qs.filter(student=student)
+        except Student.DoesNotExist:
+            return qs.none()
+    
+    def has_add_permission(self, request):
+        return False  # Sinh viên không được thêm mới attendance
+    
+    def has_change_permission(self, request, obj=None):
+        return False  # Sinh viên không được sửa attendance
+    
+    def has_delete_permission(self, request, obj=None):
+        return False  # Sinh viên không được xóa attendance
+
+class StudentScheduleAdmin(admin.ModelAdmin):
+    list_display = ['course_name', 'teacher', 'class_name', 'room', 'get_lesson_range', 'start_date', 'is_active']
+    list_filter = ['is_active', 'course_name', 'class_name', 'room', 'lesson_start']
+    search_fields = ['course_name__object_name', 'teacher__user__name', 'class_name__class_name']
+    readonly_fields = ['teacher', 'course_name', 'room', 'class_name', 'lesson_start', 'lesson_count',
+                      'start_date', 'end_date', 'weekdays', 'is_active', 'qr_code_view',
+                      'start_time_display', 'end_time_display']
+    
+    def start_time_display(self, obj):
+        if obj.start_time:
+            return timezone.localtime(obj.start_time).strftime('%H:%M:%S %d/%m/%Y')
+        return "Chưa tính toán"
+    start_time_display.short_description = "Thời gian bắt đầu"
+    
+    def end_time_display(self, obj):
+        if obj.end_time:
+            return timezone.localtime(obj.end_time).strftime('%H:%M:%S %d/%m/%Y')
+        return "Chưa tính toán"
+    end_time_display.short_description = "Thời gian kết thúc"
+    
+    def get_lesson_range(self, obj):
+        end_lesson = obj.lesson_start + obj.lesson_count - 1
+        if end_lesson > 11:
+            end_lesson = 11
+        return f"Tiết {obj.lesson_start} - {end_lesson}"
+    get_lesson_range.short_description = "Tiết học"
+    
+    def qr_code_view(self, obj):
+        if not obj.qr_code:
+            return "Mã QR chưa được tạo"
+        
+        return format_html(
+            '''
+            <div style="margin-bottom: 20px;">
+                <h3>Mã QR cho lịch học</h3>
+                <img src="{}" style="max-width: 300px; border: 1px solid #ddd; padding: 5px;">
+                <p><strong>Thời gian học:</strong> {} đến {}</p>
+            </div>
+            ''',
+            obj.qr_code.url if obj.qr_code else '',
+            timezone.localtime(obj.start_time).strftime('%H:%M:%S %d/%m/%Y') if obj.start_time else 'Không xác định',
+            timezone.localtime(obj.end_time).strftime('%H:%M:%S %d/%m/%Y') if obj.end_time else 'Không xác định'
+        )
+    qr_code_view.short_description = 'Mã QR'
+    
+    def get_queryset(self, request):
+        """
+        Chỉ hiển thị schedules của các lớp mà sinh viên thuộc về
+        """
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        
+        try:
+            student = Student.objects.get(user=request.user)
+            classes = student.student_classes.all()
+            return qs.filter(class_name__in=classes)
+        except Student.DoesNotExist:
+            return qs.none()
+    
+    def has_add_permission(self, request):
+        return False  # Sinh viên không được thêm mới lịch học
+    
+    def has_change_permission(self, request, obj=None):
+        return False  # Sinh viên không được sửa lịch học
+    
+    def has_delete_permission(self, request, obj=None):
+        return False  # Sinh viên không được xóa lịch học
+
+class StudentClassroomAdmin(admin.ModelAdmin):
+    list_display = ['classroom_code', 'class_name', 'location_info']
+    search_fields = ['classroom_code', 'class_name']
+    readonly_fields = ['classroom_code', 'class_name', 'map_view']
+    
+    def location_info(self, obj):
+        if obj.latitude and obj.longitude:
+            return f"{obj.latitude:.6f}, {obj.longitude:.6f}"
+        default_lat = 20.984505113573572
+        default_lng = 105.79876021583512
+        return f"{default_lat:.6f}, {default_lng:.6f} (mặc định)"
+    location_info.short_description = "Vị trí"
+
+    def map_view(self, obj):
+        default_lat = 20.984505113573572
+        default_lng = 105.79876021583512
+        
+        if obj and obj.latitude and obj.longitude:
+            lat = obj.latitude
+            lng = obj.longitude
+            map_url = f"https://maps.google.com/maps?q={lat},{lng}&z=15&output=embed"
+            location_text = f"{lat}, {lng}"
+        else:
+            lat = default_lat
+            lng = default_lng
+            map_url = f"https://maps.google.com/maps?q={lat},{lng}&z=15&output=embed"
+            location_text = f"{lat}, {lng} (mặc định)"
+        
+        return format_html('''
+            <div style="margin-bottom: 20px;">
+                <h3>Vị trí hiện tại: {location}</h3>
+                <iframe width="100%" height="400" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="{map_url}"></iframe>
+            </div>
+        ''', location=location_text, map_url=map_url)
+    map_view.short_description = 'Bản đồ'
+
+    def has_add_permission(self, request):
+        return False  # Sinh viên không được thêm mới phòng học
+    
+    def has_change_permission(self, request, obj=None):
+        return False  # Sinh viên không được sửa phòng học
+    
+    def has_delete_permission(self, request, obj=None):
+        return False  # Sinh viên không được xóa phòng học
+    
+    def get_queryset(self, request):
+        """
+        Chỉ hiển thị các phòng học của các lịch học mà sinh viên đó tham gia
+        """
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        
+        try:
+            student = Student.objects.get(user=request.user)
+            classes = student.student_classes.all()
+            schedules = Schedule.objects.filter(class_name__in=classes)
+            classroom_ids = schedules.values_list('room', flat=True).distinct()
+            return qs.filter(id__in=classroom_ids)
+        except Student.DoesNotExist:
+            return qs.none()
+
+# Đăng ký các model với site admin của sinh viên
+student_admin_site.register(Attendance, StudentAttendanceAdmin)
+student_admin_site.register(Schedule, StudentScheduleAdmin)
+student_admin_site.register(Classroom, StudentClassroomAdmin)
