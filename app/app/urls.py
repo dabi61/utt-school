@@ -36,6 +36,7 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name='api-schema'),
         name='api-docs'
     ),
+    path('api/attendance/', include('attendance.urls')),
     path('api/qr/', include(qr_router.urls)),
     path('api/core/', include(core_router.urls)),
     path('api/school/', include('school_management.urls')),
